@@ -19,6 +19,7 @@ pacman::p_load(arm,
       , mlr3learners
       , tidymodels
       , caret
+      , scales
       )
 ```
 
@@ -232,7 +233,7 @@ Your code:
 Your answer:
 
 ~~~
-Confusion matrix i suppose?
+Confusion matrix
 
 
 ~~~
@@ -302,52 +303,77 @@ In this problem, you will develop a model to predict whether a given car gets hi
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+auto <- read.csv("Auto.csv")
+auto$mpg01 <- factor(ifelse(auto$mpg < median(auto$mpg), 0, 1))
+
 ```
+
+
+(b) Explore the data graphically in order to investigate the association between `mpg01` and the other features. Which other features seem most likely to be useful in predicting `mpg01`? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.
+
+```{r}
+mames <- melt(auto[,c("cylinders","displacement", "horsepower",
+                          "weight" , "acceleration", "name", "year", "origin", "mpg01")],
+              id.vars = "mpg01")
+ggplot(mames) + geom_point() + 
+  aes(x = value, y = mpg01) +
+  scale_x_discrete(breaks = pretty_breaks(n = 5)) +
+  facet_wrap(variable~.,scales = "free")+ 
+  theme_classic()
+
+mames_int <- melt(auto[,c("cylinders","displacement", "horsepower",
+                          "weight" , "acceleration", "year", "origin", "mpg01")],
+              id.vars = "mpg01")
+ggplot(mames_int) + geom_boxplot() + 
+  aes(x = mpg01, y = value) +
+  facet_wrap(variable~.,scales = "free")+ 
+  theme_classic()
+
+```
+
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+Displacement, horsepower, weight and acceleration will be useful in predicting, as seen in scatterplots. 
+Years, origin, cylinders also vary in boxplot, they should be considered as well since each group reflect outliers.
 ~~~
 
-
-(b) Explore the data graphically in order to investigate the association between `mpg01` and the other features. Which other features seem most likely to be useful in predicting `mpg01`? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.
 
 (c) Split the data into a training set and a test set.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+size<-floor(dim(auto)[1]*0.7)
+set.seed(400)
+samp_idx<-sample(1:dim(auto)[1],size,FALSE)
+auto_tr <- auto[samp_idx,]
+auto_tst <- auto[-samp_idx,]
+saveRDS(auto_tr, "auto_train.rds")
+saveRDS(auto_tst, "auto_test.rds")
+# Sanity check
+table(auto_tr$mpg01)/nrow(auto_tr)
+table(auto_tst$mpg01)/nrow(auto_tst)
 ```
-
-Your answer:
-
-~~~
-Please write your answer in full sentences.
-
-
-~~~
-
 
 (d) Perform LDA on the training data in order to predict `mpg01` using the variables that seemed most associated with `mpg01` in (b). What is the test error of the model obtained?
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+lda_auto <- lda(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, auto_tr)
+pred_lda <- predict(lda_auto, auto_tst)
+conf <- table(list(predicted= pred_lda$class, observed=auto_tst$mpg01))
+confusionMatrix(conf)
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
+
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of LDA model is 0.076
 ~~~
 
 
@@ -355,16 +381,19 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+qda_auto <- qda(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, auto_tr)
+pred_qda <- predict(qda_auto, auto_tst)
+conf <- table(list(predicted= pred_qda$class, observed=auto_tst$mpg01))
+confusionMatrix(conf)
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of QDA model is 0.068
 ~~~
 
 
@@ -372,8 +401,12 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+logit_auto <- glm(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, family = binomial(link = "logit"), auto_tr)
+pred_logit <- predict(logit_auto, auto_tst)
+conf <- table(list(predicted= pred_logit, observed=auto_tst$mpg01))
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
 ```
 
 Your answer:
