@@ -99,6 +99,7 @@ Covid_Data$INTUBED  <- ifelse( Covid_Data$INTUBED  <3, Covid_Data$INTUBED, NA)
 Covid_Data$PNEUMONIA<- ifelse( Covid_Data$PNEUMONIA<3, Covid_Data$PNEUMONIA, NA)
 Covid_Data$PREGNANT <- ifelse( Covid_Data$PREGNANT <3, Covid_Data$PREGNANT, NA)
 Covid_Data$ICU      <- ifelse( Covid_Data$ICU      <3, Covid_Data$ICU, NA)
+Covid_Data$PNEU_bin <- ifelse( Covid_Data$PNEUMONIA == "no", 0, 1 )
 
 ## Factor the variables
 
@@ -225,14 +226,13 @@ Q1. What metric will you use? Why?
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+Confusion matrix i suppose?
 
 
 ~~~
@@ -241,41 +241,47 @@ Q2. What was your best performing model?
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+a<-colSums(!is.na(Train_COVID))
+glm_fit_mine <- glm(SURVIVED_bin ~ AGE_TRUNK + SEX + ASTHMA + DIABETES +
+                      RENAL_CHRONIC + USMER +
+                      MEDICAL_UNIT * PATIENT_TYPE + OBESITY * CARDIOVASCULAR + 
+                      HIPERTENSION * INMSUPR + COPD + I(COPD^2) + I(RENAL_CHRONIC^2),  
+                   family=binomial(link = "logit"), 
+                   data = Train_COVID)
+summary(glm_fit_mine)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+Shown as above.
+Null deviance: 165177  on 314571  degrees of freedom
+Residual deviance:  90238  on 314553  degrees of freedom
+AIC: 90276
 ~~~
 
 Q3. Explain how you got the model in detail.
 
-
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r}
+logit_P = predict(glm_fit_mine,Test_COVID,type="response")
+logit_Pred <- ifelse(logit_P > 0.5,1,0) # Probability check
+library(pROC)
+roc_score=roc(Test_COVID$SURVIVED_bin, logit_P) #AUC score
+plot(roc_score ,main ="ROC curve -- Logistic Regression ")
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+I try to involve variables as much as possible (especially disease-related predictors), and some transformations on certain variables, finally come up with this model. Residual deviance is significantly low compared to null deviance, indicating this model catches some trend in the data.
 ~~~
 
 Q4. Based on your model, what factor seems to be important in deciding if a patient survives or not.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+coef(glm_fit_mine)
 ```
 
 Your answer:
