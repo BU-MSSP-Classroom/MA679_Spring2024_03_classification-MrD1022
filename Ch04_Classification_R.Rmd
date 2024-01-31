@@ -19,6 +19,7 @@ pacman::p_load(arm,
       , mlr3learners
       , tidymodels
       , caret
+      , scales
       )
 ```
 
@@ -99,6 +100,7 @@ Covid_Data$INTUBED  <- ifelse( Covid_Data$INTUBED  <3, Covid_Data$INTUBED, NA)
 Covid_Data$PNEUMONIA<- ifelse( Covid_Data$PNEUMONIA<3, Covid_Data$PNEUMONIA, NA)
 Covid_Data$PREGNANT <- ifelse( Covid_Data$PREGNANT <3, Covid_Data$PREGNANT, NA)
 Covid_Data$ICU      <- ifelse( Covid_Data$ICU      <3, Covid_Data$ICU, NA)
+Covid_Data$PNEU_bin <- ifelse( Covid_Data$PNEUMONIA == "no", 0, 1 )
 
 ## Factor the variables
 
@@ -225,57 +227,70 @@ Q1. What metric will you use? Why?
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# library(psych)
+# pairs.panels(Test_COVID[-1])
+# M <-cor(Train_COVID[,c("USMER","MEDICAL_UNIT","SEX","PATIENT_TYPE", 
+#                        "DATE_DIED","INTUBED", "PNEUMONIA", "AGE", "PREGNANT", 
+#                        "DIABETES", "COPD", "ASTHMA", "INMSUPR", "HIPERTENSION", "OTHER_DISEASE",  
+#                        "CARDIOVASCULAR", "OBESITY", "RENAL_CHRONIC", "TOBACCO", "ICU", "FEMALE", 
+#                        "AGE_TRUNK", "SURVIVED_bin")],use="pairwise.complete.obs")
+# corrplot(M, type="upper", order="hclust",
+#          col=brewer.pal(n=8, name="RdYlBu"))
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+Disease-related factors, and patient information
 ~~~
 
 Q2. What was your best performing model?  
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+a<-colSums(!is.na(Train_COVID))
+glm_fit_mine <- glm(SURVIVED_bin ~ AGE_TRUNK + SEX + ASTHMA + DIABETES +
+                      RENAL_CHRONIC + USMER +
+                      MEDICAL_UNIT * PATIENT_TYPE + OBESITY * CARDIOVASCULAR + 
+                      HIPERTENSION * INMSUPR + COPD + I(COPD^2) + I(RENAL_CHRONIC^2),  
+                   family=binomial(link = "logit"), 
+                   data = Train_COVID)
+summary(glm_fit_mine)
+binnedplot(predict(glm_fit_mine,type="response"),resid(glm_fit_mine,type="response" ))
+
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+Shown as above.
+Null deviance: 165177  on 314571  degrees of freedom
+Residual deviance:  90238  on 314553  degrees of freedom
+AIC: 90276
 ~~~
 
 Q3. Explain how you got the model in detail.
 
-
 Your code:
-```{r,echo=TRUE}
-#
-#
+```{r}
+logit_P = predict(glm_fit_mine,Test_COVID,type="response")
+logit_Pred <- ifelse(logit_P > 0.5,1,0) # Probability check
+library(pROC)
+roc_score=roc(Test_COVID$SURVIVED_bin, logit_P) #AUC score
+plot(roc_score ,main ="ROC curve -- Logistic Regression ")
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+I try to involve variables as much as possible (especially disease-related predictors), and some transformations on certain variables, finally come up with this model. Residual deviance is significantly low compared to null deviance, indicating this model catches some trend in the data.
 ~~~
 
 Q4. Based on your model, what factor seems to be important in deciding if a patient survives or not.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+coef(glm_fit_mine)
 ```
 
 Your answer:
@@ -296,52 +311,77 @@ In this problem, you will develop a model to predict whether a given car gets hi
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+auto <- read.csv("Auto.csv")
+auto$mpg01 <- factor(ifelse(auto$mpg < median(auto$mpg), 0, 1))
+
 ```
+
+
+(b) Explore the data graphically in order to investigate the association between `mpg01` and the other features. Which other features seem most likely to be useful in predicting `mpg01`? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.
+
+```{r}
+mames <- melt(auto[,c("cylinders","displacement", "horsepower",
+                          "weight" , "acceleration", "name", "year", "origin", "mpg01")],
+              id.vars = "mpg01")
+ggplot(mames) + geom_point() + 
+  aes(x = value, y = mpg01) +
+  scale_x_discrete(breaks = pretty_breaks(n = 5)) +
+  facet_wrap(variable~.,scales = "free")+ 
+  theme_classic()
+
+mames_int <- melt(auto[,c("cylinders","displacement", "horsepower",
+                          "weight" , "acceleration", "year", "origin", "mpg01")],
+              id.vars = "mpg01")
+ggplot(mames_int) + geom_boxplot() + 
+  aes(x = mpg01, y = value) +
+  facet_wrap(variable~.,scales = "free")+ 
+  theme_classic()
+
+```
+
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+Displacement, horsepower, weight and acceleration will be useful in predicting, as seen in scatterplots. 
+Years, origin, cylinders also vary in boxplot, they should be considered as well since each group reflect outliers.
 ~~~
 
-
-(b) Explore the data graphically in order to investigate the association between `mpg01` and the other features. Which other features seem most likely to be useful in predicting `mpg01`? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.
 
 (c) Split the data into a training set and a test set.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+size<-floor(dim(auto)[1]*0.7)
+set.seed(400)
+samp_idx<-sample(1:dim(auto)[1],size,FALSE)
+auto_tr <- auto[samp_idx,]
+auto_tst <- auto[-samp_idx,]
+saveRDS(auto_tr, "auto_train.rds")
+saveRDS(auto_tst, "auto_test.rds")
+# Sanity check
+table(auto_tr$mpg01)/nrow(auto_tr)
+table(auto_tst$mpg01)/nrow(auto_tst)
 ```
-
-Your answer:
-
-~~~
-Please write your answer in full sentences.
-
-
-~~~
-
 
 (d) Perform LDA on the training data in order to predict `mpg01` using the variables that seemed most associated with `mpg01` in (b). What is the test error of the model obtained?
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+lda_auto <- lda(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, auto_tr)
+pred_lda <- predict(lda_auto, auto_tst)
+conf <- table(list(predicted= pred_lda$class, observed=auto_tst$mpg01))
+confusionMatrix(conf)
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
+
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of LDA model is 0.076
 ~~~
 
 
@@ -349,16 +389,19 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+qda_auto <- qda(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, auto_tr)
+pred_qda <- predict(qda_auto, auto_tst)
+conf <- table(list(predicted= pred_qda$class, observed=auto_tst$mpg01))
+confusionMatrix(conf)
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of QDA model is 0.068
 ~~~
 
 
@@ -366,16 +409,19 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+logit_auto <- glm(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, family = binomial(link = "logit"), auto_tr)
+pred_logit <- predict(logit_auto, auto_tst, "response")
+pred <- ifelse(pred_logit > 0.5, 1, 0)
+conf <- table(list(predicted= pred, observed=auto_tst$mpg01))
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of logistic regression model is 0.085.
 ~~~
 
 
@@ -383,16 +429,19 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+naivebys_auto <- train(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, auto_tr, method = "naive_bayes")
+pred_naivebys <- predict(naivebys_auto, auto_tst, 'prob')
+pred <- ifelse(pred_naivebys[1] > 0.5, 0, 1)
+conf <- table(pred, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of naive bayes model is 0.068.
 ~~~
 
 
@@ -400,16 +449,43 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+knn1_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 1))
+pred_knn1 <- predict(knn1_auto, auto_tst)
+conf <- table(pred_knn1, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te1 <- unname(1 - accuracy)
+
+knn2_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 2))
+pred_knn2 <- predict(knn2_auto, auto_tst)
+conf <- table(pred_knn2, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te2 <- unname(1 - accuracy)
+
+knn5_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 5))
+pred_knn5 <- predict(knn5_auto, auto_tst)
+conf <- table(pred_knn5, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te5 <- unname(1 - accuracy)
+
+knn6_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 6))
+pred_knn6 <- predict(knn6_auto, auto_tst)
+conf <- table(pred_knn6, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te6 <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+k=6 seems to obtain lowest test error of 0.12
 ~~~
 
 ## Additional Material
