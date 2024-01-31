@@ -227,15 +227,21 @@ Q1. What metric will you use? Why?
 
 Your code:
 ```{r,echo=TRUE}
-
+# library(psych)
+# pairs.panels(Test_COVID[-1])
+# M <-cor(Train_COVID[,c("USMER","MEDICAL_UNIT","SEX","PATIENT_TYPE", 
+#                        "DATE_DIED","INTUBED", "PNEUMONIA", "AGE", "PREGNANT", 
+#                        "DIABETES", "COPD", "ASTHMA", "INMSUPR", "HIPERTENSION", "OTHER_DISEASE",  
+#                        "CARDIOVASCULAR", "OBESITY", "RENAL_CHRONIC", "TOBACCO", "ICU", "FEMALE", 
+#                        "AGE_TRUNK", "SURVIVED_bin")],use="pairwise.complete.obs")
+# corrplot(M, type="upper", order="hclust",
+#          col=brewer.pal(n=8, name="RdYlBu"))
 ```
 
 Your answer:
 
 ~~~
-Confusion matrix
-
-
+Disease-related factors, and patient information
 ~~~
 
 Q2. What was your best performing model?  
@@ -403,8 +409,9 @@ Your code:
 ```{r,echo=TRUE}
 logit_auto <- glm(mpg01 ~cylinders + displacement + horsepower + weight +
                   acceleration + year + origin, family = binomial(link = "logit"), auto_tr)
-pred_logit <- predict(logit_auto, auto_tst)
-conf <- table(list(predicted= pred_logit, observed=auto_tst$mpg01))
+pred_logit <- predict(logit_auto, auto_tst, "response")
+pred <- ifelse(pred_logit > 0.5, 1, 0)
+conf <- table(list(predicted= pred, observed=auto_tst$mpg01))
 accuracy <- confusionMatrix(conf)$overall[1]
 te <- unname(1 - accuracy)
 ```
@@ -412,9 +419,7 @@ te <- unname(1 - accuracy)
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of logistic regression model is 0.085.
 ~~~
 
 
@@ -422,16 +427,19 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+naivebys_auto <- train(mpg01 ~cylinders + displacement + horsepower + weight +
+                  acceleration + year + origin, auto_tr, method = "naive_bayes")
+pred_naivebys <- predict(naivebys_auto, auto_tst, 'prob')
+pred <- ifelse(pred_naivebys[1] > 0.5, 0, 1)
+conf <- table(pred, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+The test error of naive bayes model is 0.068.
 ~~~
 
 
@@ -439,16 +447,43 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+knn1_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 1))
+pred_knn1 <- predict(knn1_auto, auto_tst)
+conf <- table(pred_knn1, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te1 <- unname(1 - accuracy)
+
+knn2_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 2))
+pred_knn2 <- predict(knn2_auto, auto_tst)
+conf <- table(pred_knn2, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te2 <- unname(1 - accuracy)
+
+knn5_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 5))
+pred_knn5 <- predict(knn5_auto, auto_tst)
+conf <- table(pred_knn5, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te5 <- unname(1 - accuracy)
+
+knn6_auto <- train(mpg01 ~cylinders + horsepower + weight +
+                  acceleration + origin, auto_tr, method = "knn", 
+                  tuneGrid = expand.grid(k = 6))
+pred_knn6 <- predict(knn6_auto, auto_tst)
+conf <- table(pred_knn6, observed=auto_tst$mpg01)
+accuracy <- confusionMatrix(conf)$overall[1]
+te6 <- unname(1 - accuracy)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
-
-
+k=6 seems to obtain lowest test error of 0.12
 ~~~
 
 ## Additional Material
